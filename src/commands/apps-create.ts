@@ -47,7 +47,7 @@ interface CreateWebAppOptions extends CreateFirebaseAppOptions {
 
 function logPostAppCreationInformation(
   appMetadata: IosAppMetadata | AndroidAppMetadata | WebAppMetadata,
-  appPlatform: AppPlatform
+  appPlatform: AppPlatform,
 ): void {
   logger.info("");
   logger.info(`🎉🎉🎉 Your Firebase ${appPlatform} App is ready! 🎉🎉🎉`);
@@ -103,14 +103,14 @@ async function initiateIosAppCreation(options: CreateIosAppOptions): Promise<Ios
     });
     spinner.succeed();
     return appData;
-  } catch (err: any) {
+  } catch (err: unknown) {
     spinner.fail();
     throw err;
   }
 }
 
 async function initiateAndroidAppCreation(
-  options: CreateAndroidAppOptions
+  options: CreateAndroidAppOptions,
 ): Promise<AndroidAppMetadata> {
   if (!options.nonInteractive) {
     await prompt(options, [
@@ -135,7 +135,7 @@ async function initiateAndroidAppCreation(
     });
     spinner.succeed();
     return appData;
-  } catch (err: any) {
+  } catch (err: unknown) {
     spinner.fail();
     throw err;
   }
@@ -153,7 +153,7 @@ async function initiateWebAppCreation(options: CreateWebAppOptions): Promise<Web
     const appData = await createWebApp(options.project, { displayName: options.displayName });
     spinner.succeed();
     return appData;
-  } catch (err: any) {
+  } catch (err: unknown) {
     spinner.fail();
     throw err;
   }
@@ -161,7 +161,7 @@ async function initiateWebAppCreation(options: CreateWebAppOptions): Promise<Web
 
 export const command = new Command("apps:create [platform] [displayName]")
   .description(
-    "create a new Firebase app. [platform] can be IOS, ANDROID or WEB (case insensitive)."
+    "create a new Firebase app. [platform] can be IOS, ANDROID or WEB (case insensitive).",
   )
   .option("-a, --package-name <packageName>", "required package name for the Android app")
   .option("-b, --bundle-id <bundleId>", "required bundle id for the iOS app")
@@ -171,7 +171,7 @@ export const command = new Command("apps:create [platform] [displayName]")
     async (
       platform: string = "",
       displayName: string | undefined,
-      options: any
+      options: any,
     ): Promise<AppMetadata> => {
       const projectId = needProjectId(options);
 
@@ -211,5 +211,5 @@ export const command = new Command("apps:create [platform] [displayName]")
 
       logPostAppCreationInformation(appData, appPlatform);
       return appData;
-    }
+    },
   );

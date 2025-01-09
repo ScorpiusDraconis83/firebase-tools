@@ -1,5 +1,4 @@
 import * as experiments from "../experiments";
-
 /**
  * Loads all commands for our parser.
  */
@@ -23,11 +22,14 @@ export function load(client: any): any {
   client.appdistribution = {};
   client.appdistribution.distribute = loadCommand("appdistribution-distribute");
   client.appdistribution.testers = {};
+  client.appdistribution.testers.list = loadCommand("appdistribution-testers-list");
   client.appdistribution.testers.add = loadCommand("appdistribution-testers-add");
   client.appdistribution.testers.delete = loadCommand("appdistribution-testers-remove");
   client.appdistribution.group = {};
-  client.appdistribution.group.create = loadCommand("appdistribution-group-create");
-  client.appdistribution.group.delete = loadCommand("appdistribution-group-delete");
+  client.appdistribution.group.list = loadCommand("appdistribution-groups-list");
+  client.appdistribution.group.create = loadCommand("appdistribution-groups-create");
+  client.appdistribution.group.delete = loadCommand("appdistribution-groups-delete");
+  client.appdistribution.groups = client.appdistribution.group;
   client.apps = {};
   client.apps.create = loadCommand("apps-create");
   client.apps.list = loadCommand("apps-list");
@@ -89,6 +91,8 @@ export function load(client: any): any {
   client.ext.list = loadCommand("ext-list");
   client.ext.uninstall = loadCommand("ext-uninstall");
   client.ext.update = loadCommand("ext-update");
+  client.ext.sdk = {};
+  client.ext.sdk.install = loadCommand("ext-sdk-install");
   client.ext.dev = {};
   client.ext.dev.init = loadCommand("ext-dev-init");
   client.ext.dev.list = loadCommand("ext-dev-list");
@@ -107,6 +111,16 @@ export function load(client: any): any {
   client.firestore.databases.create = loadCommand("firestore-databases-create");
   client.firestore.databases.update = loadCommand("firestore-databases-update");
   client.firestore.databases.delete = loadCommand("firestore-databases-delete");
+  client.firestore.databases.restore = loadCommand("firestore-databases-restore");
+  client.firestore.backups = {};
+  client.firestore.backups.schedules = {};
+  client.firestore.backups.list = loadCommand("firestore-backups-list");
+  client.firestore.backups.get = loadCommand("firestore-backups-get");
+  client.firestore.backups.delete = loadCommand("firestore-backups-delete");
+  client.firestore.backups.schedules.list = loadCommand("firestore-backups-schedules-list");
+  client.firestore.backups.schedules.create = loadCommand("firestore-backups-schedules-create");
+  client.firestore.backups.schedules.update = loadCommand("firestore-backups-schedules-update");
+  client.firestore.backups.schedules.delete = loadCommand("firestore-backups-schedules-delete");
   client.functions = {};
   client.functions.config = {};
   client.functions.config.clone = loadCommand("functions-config-clone");
@@ -125,6 +139,7 @@ export function load(client: any): any {
   client.functions.secrets.access = loadCommand("functions-secrets-access");
   client.functions.secrets.destroy = loadCommand("functions-secrets-destroy");
   client.functions.secrets.get = loadCommand("functions-secrets-get");
+  client.functions.secrets.describe = loadCommand("functions-secrets-describe");
   client.functions.secrets.prune = loadCommand("functions-secrets-prune");
   client.functions.secrets.set = loadCommand("functions-secrets-set");
   client.help = loadCommand("help");
@@ -150,19 +165,30 @@ export function load(client: any): any {
     client.internaltesting.functions = {};
     client.internaltesting.functions.discover = loadCommand("internaltesting-functions-discover");
   }
-  if (experiments.isEnabled("internalframeworks")) {
+  if (experiments.isEnabled("apphosting")) {
     client.apphosting = {};
     client.apphosting.backends = {};
     client.apphosting.backends.list = loadCommand("apphosting-backends-list");
     client.apphosting.backends.create = loadCommand("apphosting-backends-create");
     client.apphosting.backends.get = loadCommand("apphosting-backends-get");
     client.apphosting.backends.delete = loadCommand("apphosting-backends-delete");
-    client.apphosting.builds = {};
-    client.apphosting.builds.get = loadCommand("apphosting-builds-get");
-    client.apphosting.builds.create = loadCommand("apphosting-builds-create");
+    client.apphosting.secrets = {};
+    client.apphosting.secrets.set = loadCommand("apphosting-secrets-set");
+    client.apphosting.secrets.grantaccess = loadCommand("apphosting-secrets-grantaccess");
+    client.apphosting.secrets.describe = loadCommand("apphosting-secrets-describe");
+    client.apphosting.secrets.access = loadCommand("apphosting-secrets-access");
     client.apphosting.rollouts = {};
     client.apphosting.rollouts.create = loadCommand("apphosting-rollouts-create");
-    client.apphosting.rollouts.list = loadCommand("apphosting-rollouts-list");
+    client.apphosting.config = {};
+    client.apphosting.config.export = loadCommand("apphosting-config-export");
+    if (experiments.isEnabled("internaltesting")) {
+      client.apphosting.builds = {};
+      client.apphosting.builds.get = loadCommand("apphosting-builds-get");
+      client.apphosting.builds.create = loadCommand("apphosting-builds-create");
+      client.apphosting.repos = {};
+      client.apphosting.repos.create = loadCommand("apphosting-repos-create");
+      client.apphosting.rollouts.list = loadCommand("apphosting-rollouts-list");
+    }
   }
   client.login = loadCommand("login");
   client.login.add = loadCommand("login-add");
@@ -188,6 +214,17 @@ export function load(client: any): any {
   client.setup.emulators.pubsub = loadCommand("setup-emulators-pubsub");
   client.setup.emulators.storage = loadCommand("setup-emulators-storage");
   client.setup.emulators.ui = loadCommand("setup-emulators-ui");
+  client.dataconnect = {};
+  client.setup.emulators.dataconnect = loadCommand("setup-emulators-dataconnect");
+  client.dataconnect.services = {};
+  client.dataconnect.services.list = loadCommand("dataconnect-services-list");
+  client.dataconnect.sql = {};
+  client.dataconnect.sql.diff = loadCommand("dataconnect-sql-diff");
+  client.dataconnect.sql.migrate = loadCommand("dataconnect-sql-migrate");
+  client.dataconnect.sql.grant = loadCommand("dataconnect-sql-grant");
+  client.dataconnect.sql.shell = loadCommand("dataconnect-sql-shell");
+  client.dataconnect.sdk = {};
+  client.dataconnect.sdk.generate = loadCommand("dataconnect-sdk-generate");
   client.target = loadCommand("target");
   client.target.apply = loadCommand("target-apply");
   client.target.clear = loadCommand("target-clear");

@@ -1,3 +1,4 @@
+import type { JsonObject } from "@angular-devkit/core";
 import type { Target } from "@angular-devkit/architect";
 import type { ProjectDefinition } from "@angular-devkit/core/src/workspace";
 import type { WorkspaceNodeModulesArchitectHost } from "@angular-devkit/architect/node";
@@ -15,9 +16,9 @@ async function localesForTarget(
   dir: string,
   architectHost: WorkspaceNodeModulesArchitectHost,
   target: Target,
-  workspaceProject: ProjectDefinition
+  workspaceProject: ProjectDefinition,
 ) {
-  const { targetStringFromTarget } = relativeRequire(dir, "@angular-devkit/architect");
+  const { targetStringFromTarget } = await relativeRequire(dir, "@angular-devkit/architect");
   const targetOptions = await architectHost.getOptionsForTarget(target);
   if (!targetOptions) {
     const targetString = targetStringFromTarget(target);
@@ -41,7 +42,7 @@ async function localesForTarget(
     }
     if (i18n.sourceLocale.baseHref !== "")
       throw new FirebaseError(
-        'All your i18n locales must have a baseHref of "" on Firebase, errored on sourceLocale.'
+        'All your i18n locales must have a baseHref of "" on Firebase, errored on sourceLocale.',
       );
     defaultLocale = i18n.sourceLocale.code;
     if (targetOptions.localize === true) {
@@ -49,7 +50,7 @@ async function localesForTarget(
       for (const [locale, { baseHref }] of Object.entries(i18n.locales)) {
         if (baseHref !== "")
           throw new FirebaseError(
-            `All your i18n locales must have a baseHref of \"\" on Firebase, errored on ${locale}.`
+            `All your i18n locales must have a baseHref of \"\" on Firebase, errored on ${locale}.`,
           );
         locales.push(locale);
       }
@@ -98,10 +99,11 @@ function getValidBuilders(purpose: BUILD_TARGET_PURPOSE): string[] {
 
 export async function getAllTargets(purpose: BUILD_TARGET_PURPOSE, dir: string) {
   const validBuilders = getValidBuilders(purpose);
-  const { NodeJsAsyncHost } = relativeRequire(dir, "@angular-devkit/core/node");
-  const { workspaces } = relativeRequire(dir, "@angular-devkit/core");
-  const { targetStringFromTarget } = relativeRequire(dir, "@angular-devkit/architect");
-
+  const [{ NodeJsAsyncHost }, { workspaces }, { targetStringFromTarget }] = await Promise.all([
+    relativeRequire(dir, "@angular-devkit/core/node"),
+    relativeRequire(dir, "@angular-devkit/core"),
+    relativeRequire(dir, "@angular-devkit/architect"),
+  ]);
   const host = workspaces.createWorkspaceHost(new NodeJsAsyncHost());
   const { workspace } = await workspaces.readWorkspace(dir, host);
 
@@ -123,17 +125,19 @@ export async function getAllTargets(purpose: BUILD_TARGET_PURPOSE, dir: string) 
 
 // TODO(jamesdaniels) memoize, dry up
 export async function getContext(dir: string, targetOrConfiguration?: string) {
-  const { NodeJsAsyncHost } = relativeRequire(dir, "@angular-devkit/core/node");
-  const { workspaces } = relativeRequire(dir, "@angular-devkit/core");
-  const { WorkspaceNodeModulesArchitectHost } = relativeRequire(
-    dir,
-    "@angular-devkit/architect/node"
-  );
-  const { Architect, targetFromTargetString, targetStringFromTarget } = relativeRequire(
-    dir,
-    "@angular-devkit/architect"
-  );
-  const { parse } = relativeRequire(dir, "jsonc-parser");
+  const [
+    { NodeJsAsyncHost },
+    { workspaces },
+    { WorkspaceNodeModulesArchitectHost },
+    { Architect, targetFromTargetString, targetStringFromTarget },
+    { parse },
+  ] = await Promise.all([
+    relativeRequire(dir, "@angular-devkit/core/node"),
+    relativeRequire(dir, "@angular-devkit/core"),
+    relativeRequire(dir, "@angular-devkit/architect/node"),
+    relativeRequire(dir, "@angular-devkit/architect"),
+    relativeRequire(dir, "jsonc-parser"),
+  ]);
 
   const host = workspaces.createWorkspaceHost(new NodeJsAsyncHost());
   const { workspace } = await workspaces.readWorkspace(dir, host);
@@ -174,10 +178,9 @@ export async function getContext(dir: string, targetOrConfiguration?: string) {
     if (apps.length === 1) project = apps[0];
   }
 
-  if (!project)
-    throw new FirebaseError(
-      "Unable to determine the application to deploy, specify a target via the FIREBASE_FRAMEWORKS_BUILD_TARGET environment variable"
-    );
+  if (!project) {
+    throwCannotDetermineTarget();
+  }
 
   const workspaceProject = workspace.projects.get(project);
   if (!workspaceProject) throw new FirebaseError(`No project ${project} found.`);
@@ -255,23 +258,23 @@ export async function getContext(dir: string, targetOrConfiguration?: string) {
       }
       if (targetStringFromTarget(browserTarget) !== prerenderOptions?.browserTarget) {
         throw new FirebaseError(
-          "ng-deploy's browserTarget and prerender's browserTarget do not match. Please check your angular.json"
+          "ng-deploy's browserTarget and prerender's browserTarget do not match. Please check your angular.json",
         );
       }
       if (serverTarget && targetStringFromTarget(serverTarget) !== prerenderOptions?.serverTarget) {
         throw new FirebaseError(
-          "ng-deploy's serverTarget and prerender's serverTarget do not match. Please check your angular.json"
+          "ng-deploy's serverTarget and prerender's serverTarget do not match. Please check your angular.json",
         );
       }
       if (!serverTarget) {
         console.warn(
-          "Treating the application as fully rendered. Add a serverTarget to your deploy target in angular.json to utilize server-side rendering."
+          "Treating the application as fully rendered. Add a serverTarget to your deploy target in angular.json to utilize server-side rendering.",
         );
       }
     }
     if (!buildTarget && !browserTarget) {
       throw new FirebaseError(
-        "ng-deploy is missing a build target. Plase check your angular.json."
+        "ng-deploy is missing a build target. Plase check your angular.json.",
       );
     }
   } else if (!overrideTarget) {
@@ -345,13 +348,14 @@ export async function getContext(dir: string, targetOrConfiguration?: string) {
       const targetString = targetStringFromTarget(target);
       if (target.project !== project)
         throw new FirebaseError(
-          `${targetString} is not in project ${project}. Please check your angular.json`
+          `${targetString} is not in project ${project}. Please check your angular.json`,
         );
       const definition = workspaceProject.targets.get(target.target);
       if (!definition) throw new FirebaseError(`${target} could not be found in your angular.json`);
       const { builder } = definition;
       if (target === deployTarget && builder === ExpectedBuilder.DEPLOY) continue;
       if (target === buildTarget && builder === ExpectedBuilder.APPLICATION) continue;
+      if (target === buildTarget && builder === ExpectedBuilder.LEGACY_BROWSER) continue;
       if (target === browserTarget && builder === ExpectedBuilder.BROWSER_ESBUILD) continue;
       if (target === browserTarget && builder === ExpectedBuilder.LEGACY_BROWSER) continue;
       if (target === prerenderTarget && builder === ExpectedBuilder.LEGACY_DEVKIT_PRERENDER)
@@ -365,7 +369,7 @@ export async function getContext(dir: string, targetOrConfiguration?: string) {
         continue;
       if (target === serveTarget && builder === ExpectedBuilder.DEV_SERVER) continue;
       throw new FirebaseError(
-        `${definition.builder} (${targetString}) is not a recognized builder. Please check your angular.json`
+        `${definition.builder} (${targetString}) is not a recognized builder. Please check your angular.json`,
       );
     }
   }
@@ -374,7 +378,8 @@ export async function getContext(dir: string, targetOrConfiguration?: string) {
   if (!buildOrBrowserTarget) {
     throw new FirebaseError(`No build target on ${project}`);
   }
-  const browserTargetOptions = await architectHost.getOptionsForTarget(buildOrBrowserTarget);
+
+  const browserTargetOptions = await tryToGetOptionsForTarget(architectHost, buildOrBrowserTarget);
   if (!browserTargetOptions) {
     const targetString = targetStringFromTarget(buildOrBrowserTarget);
     throw new FirebaseError(`Couldn't find options for ${targetString}.`);
@@ -383,7 +388,8 @@ export async function getContext(dir: string, targetOrConfiguration?: string) {
   const baseHref = browserTargetOptions.baseHref || "/";
   assertIsString(baseHref);
 
-  const buildTargetOptions = buildTarget && (await architectHost.getOptionsForTarget(buildTarget));
+  const buildTargetOptions =
+    buildTarget && (await tryToGetOptionsForTarget(architectHost, buildTarget));
   const ssr = buildTarget ? !!buildTargetOptions?.ssr : !!serverTarget;
 
   return {
@@ -409,15 +415,18 @@ export async function getBrowserConfig(sourceDir: string, configuration: string)
   if (!buildOrBrowserTarget) {
     throw new AssertionError({ message: "expected build or browser target defined" });
   }
-  const { locales, defaultLocale } = await localesForTarget(
-    sourceDir,
-    architectHost,
-    buildOrBrowserTarget,
-    workspaceProject
-  );
-  const targetOptions = await architectHost.getOptionsForTarget(buildOrBrowserTarget);
+  const [{ locales, defaultLocale }, targetOptions, builderName] = await Promise.all([
+    localesForTarget(sourceDir, architectHost, buildOrBrowserTarget, workspaceProject),
+    architectHost.getOptionsForTarget(buildOrBrowserTarget),
+    architectHost.getBuilderNameForTarget(buildOrBrowserTarget),
+  ]);
+
   assertIsString(targetOptions?.outputPath);
-  const outputPath = join(targetOptions.outputPath, buildTarget ? "browser" : "");
+
+  const outputPath = join(
+    targetOptions.outputPath,
+    buildTarget && builderName === ExpectedBuilder.APPLICATION ? "browser" : "",
+  );
   return { locales, baseHref, outputPath, defaultLocale };
 }
 
@@ -466,7 +475,7 @@ export async function getServerConfig(sourceDir: string, configuration: string) 
     sourceDir,
     architectHost,
     buildOrServerTarget,
-    workspaceProject
+    workspaceProject,
   );
   const serverTargetOptions = await architectHost.getOptionsForTarget(buildOrServerTarget);
   assertIsString(serverTargetOptions?.outputPath);
@@ -475,7 +484,7 @@ export async function getServerConfig(sourceDir: string, configuration: string) 
     .join(posix.sep);
   if (serverLocales && !defaultLocale) {
     throw new FirebaseError(
-      "It's required that your source locale to be one of the localize options"
+      "It's required that your source locale to be one of the localize options",
     );
   }
   const serverEntry = buildTarget ? "server.mjs" : serverTarget && "main.js";
@@ -485,7 +494,7 @@ export async function getServerConfig(sourceDir: string, configuration: string) 
     sourceDir,
     architectHost,
     buildOrBrowserTarget,
-    workspaceProject
+    workspaceProject,
   );
   return {
     packageJson,
@@ -503,7 +512,7 @@ export async function getServerConfig(sourceDir: string, configuration: string) 
 }
 
 export async function getBuildConfig(sourceDir: string, configuration: string) {
-  const { targetStringFromTarget } = relativeRequire(sourceDir, "@angular-devkit/architect");
+  const { targetStringFromTarget } = await relativeRequire(sourceDir, "@angular-devkit/architect");
   const {
     buildTarget,
     browserTarget,
@@ -519,8 +528,8 @@ export async function getBuildConfig(sourceDir: string, configuration: string) {
     buildTarget
       ? [buildTarget]
       : prerenderTarget
-      ? [prerenderTarget]
-      : [browserTarget, serverTarget].filter((it) => !!it)
+        ? [prerenderTarget]
+        : [browserTarget, serverTarget].filter((it) => !!it)
   ).map((it) => targetStringFromTarget(it!));
   const buildOrBrowserTarget = buildTarget || browserTarget;
   if (!buildOrBrowserTarget) {
@@ -530,7 +539,7 @@ export async function getBuildConfig(sourceDir: string, configuration: string) {
     sourceDir,
     architectHost,
     buildOrBrowserTarget,
-    workspaceProject
+    workspaceProject,
   );
   return {
     targets,
@@ -553,4 +562,21 @@ export function getAngularVersion(cwd: string): string | undefined {
   if (!angularVersionSemver) return dependency.version;
 
   return angularVersionSemver.toString();
+}
+
+/**
+ * Try to get options for target, throw an error when expected target doesn't exist in the configuration.
+ */
+export async function tryToGetOptionsForTarget(
+  architectHost: WorkspaceNodeModulesArchitectHost,
+  target: Target,
+): Promise<JsonObject | null> {
+  return await architectHost.getOptionsForTarget(target).catch(throwCannotDetermineTarget);
+}
+
+function throwCannotDetermineTarget(error?: Error): never {
+  throw new FirebaseError(
+    `Unable to determine the application to deploy, specify a target via the FIREBASE_FRAMEWORKS_BUILD_TARGET environment variable.`,
+    { original: error },
+  );
 }

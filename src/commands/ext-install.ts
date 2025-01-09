@@ -1,13 +1,11 @@
 import * as clc from "colorette";
-import { marked } from "marked";
 import * as semver from "semver";
-import * as TerminalRenderer from "marked-terminal";
 
 import { displayExtensionVersionInfo } from "../extensions/displayExtensionInfo";
 import * as askUserForEventsConfig from "../extensions/askUserForEventsConfig";
 import { checkMinRequiredVersion } from "../checkMinRequiredVersion";
 import { Command } from "../command";
-import { FirebaseError } from "../error";
+import { FirebaseError, getErrMsg, getError } from "../error";
 import { logger } from "../logger";
 import { getProjectId, needProjectId } from "../projectUtils";
 import * as extensionsApi from "../extensions/extensionsApi";
@@ -33,17 +31,13 @@ import { Options } from "../options";
 import * as manifest from "../extensions/manifest";
 import { displayDeveloperTOSWarning } from "../extensions/tos";
 
-marked.setOptions({
-  renderer: new TerminalRenderer(),
-});
-
 /**
  * Command for installing an extension
  */
 export const command = new Command("ext:install [extensionRef]")
   .description(
     "add an uploaded extension to firebase.json if [publisherId/extensionId] is provided;" +
-      "or, add a local extension if [localPath] is provided"
+      "or, add a local extension if [localPath] is provided",
   )
   .option("--local", "deprecated")
   .withForce()
@@ -55,12 +49,12 @@ export const command = new Command("ext:install [extensionRef]")
     if (options.local) {
       utils.logLabeledWarning(
         logPrefix,
-        "As of firebase-tools@11.0.0, the `--local` flag is no longer required, as it is the default behavior."
+        "As of firebase-tools@11.0.0, the `--local` flag is no longer required, as it is the default behavior.",
       );
     }
     if (!extensionRef) {
       throw new FirebaseError(
-        "Extension ref is required to install. To see a full list of available extensions, go to Extensions Hub (https://extensions.dev/extensions)."
+        "Extension ref is required to install. To see a full list of available extensions, go to Extensions Hub (https://extensions.dev/extensions).",
       );
     }
     let source: ExtensionSource | undefined;
@@ -88,8 +82,8 @@ export const command = new Command("ext:install [extensionRef]")
       if (extensionVersion.state === "DEPRECATED") {
         throw new FirebaseError(
           `Extension version ${clc.bold(
-            extensionVersionRef
-          )} is deprecated and cannot be installed. To install the latest non-deprecated version, omit the version in the extension ref.`
+            extensionVersionRef,
+          )} is deprecated and cannot be installed. To install the latest non-deprecated version, omit the version in the extension ref.`,
         );
       }
       logger.info();
@@ -104,18 +98,18 @@ export const command = new Command("ext:install [extensionRef]")
         const version = extension.latestApprovedVersion || extension.latestVersion;
         logger.info(
           `You are about to install extension version ${clc.bold(
-            extensionVersion.spec.version
+            extensionVersion.spec.version,
           )} which is older than the latest ${
             extension.latestApprovedVersion ? "accepted version" : "version"
-          } ${clc.bold(version!)}.`
+          } ${clc.bold(version!)}.`,
         );
       }
     }
     if (!source && !extensionVersion) {
       throw new FirebaseError(
         `Failed to parse ${clc.bold(
-          extensionRef
-        )} as an extension version or a path to a local extension. Please specify a valid reference.`
+          extensionRef,
+        )} as an extension version or a path to a local extension. Please specify a valid reference.`,
       );
     }
     if (
@@ -131,8 +125,8 @@ export const command = new Command("ext:install [extensionRef]")
     if (!spec) {
       throw new FirebaseError(
         `Could not find the extension.yaml for extension '${clc.bold(
-          extensionRef
-        )}'. Please make sure this is a valid extension and try again.`
+          extensionRef,
+        )}'. Please make sure this is a valid extension and try again.`,
       );
     }
 
@@ -157,11 +151,14 @@ export const command = new Command("ext:install [extensionRef]")
         nonInteractive: options.nonInteractive,
         force: options.force,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (!(err instanceof FirebaseError)) {
-        throw new FirebaseError(`Error occurred saving the extension to manifest: ${err.message}`, {
-          original: err,
-        });
+        throw new FirebaseError(
+          `Error occurred saving the extension to manifest: ${getErrMsg(err)}`,
+          {
+            original: getError(err),
+          },
+        );
       }
       throw err;
     }
@@ -189,7 +186,7 @@ async function installToManifest(options: InstallExtensionOptions): Promise<void
   const spec = extVersion?.spec ?? source?.spec;
   if (!spec) {
     throw new FirebaseError(
-      `Could not find the extension.yaml for ${extensionRef}. Please make sure this is a valid extension and try again.`
+      `Could not find the extension.yaml for ${extensionRef}. Please make sure this is a valid extension and try again.`,
     );
   }
 
@@ -214,7 +211,7 @@ async function installToManifest(options: InstallExtensionOptions): Promise<void
     ? await askUserForEventsConfig.askForEventsConfig(
         spec.events,
         "${param:PROJECT_ID}",
-        instanceId
+        instanceId,
       )
     : undefined;
   if (eventsConfig) {
@@ -235,7 +232,7 @@ async function installToManifest(options: InstallExtensionOptions): Promise<void
       },
     ],
     config,
-    { nonInteractive, force: force ?? false }
+    { nonInteractive, force: force ?? false },
   );
   displayDeveloperTOSWarning();
 }

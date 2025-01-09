@@ -33,12 +33,9 @@ export async function discover(dir: string) {
   if (!anyConfigFileExists && !version) return;
   if (version && lt(version, "3.0.0-0")) return;
 
-  const {
-    dir: { public: publicDirectory },
-    ssr: mayWantBackend,
-  } = await getConfig(dir);
+  const { ssr: mayWantBackend } = await getConfig(dir);
 
-  return { publicDirectory, mayWantBackend, version };
+  return { mayWantBackend, version };
 }
 
 export async function build(cwd: string) {
@@ -109,9 +106,10 @@ export async function getDevModeHandle(cwd: string) {
   return simpleProxy(await host);
 }
 
-export async function getConfig(dir: string): Promise<NuxtOptions> {
-  const { loadNuxtConfig } = await relativeRequire(dir, "@nuxt/kit");
-  return await loadNuxtConfig(dir);
+export async function getConfig(cwd: string): Promise<NuxtOptions> {
+  const { loadNuxtConfig } = await relativeRequire(cwd, "@nuxt/kit");
+
+  return await loadNuxtConfig({ cwd });
 }
 
 /**

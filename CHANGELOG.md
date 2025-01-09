@@ -1,2 +1,2 @@
-- Fixed typo in Cloud storage bucket metadata location type. (#6648)
-- Fixed an issue where including `export` in .env files caused parsing errors. (#6629)
+- Updated `cross-env` and `cross-spawn` dependencies to avoid vulnerable versions. (#7979)
+- Fixed an issue with the Data Connect emulator where `dataDir` and `--export` were relative to the current directory insead of `firebase.json`.
