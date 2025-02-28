@@ -1,5 +1,4 @@
-const Table = require("cli-table");
-
+import * as Table from "cli-table3";
 import { Command } from "../command";
 import { needProjectId } from "../projectUtils";
 import { listAppAndroidSha, AppAndroidShaData } from "../management/apps";
@@ -44,7 +43,7 @@ export const command = new Command("apps:android:sha:list <appId>")
 
     const shaCertificates = await promiseWithSpinner<AppAndroidShaData[]>(
       async () => await listAppAndroidSha(projectId, appId),
-      "Preparing the list of your Firebase Android app SHA certificate hashes"
+      "Preparing the list of your Firebase Android app SHA certificate hashes",
     );
 
     logCertificatesList(shaCertificates);

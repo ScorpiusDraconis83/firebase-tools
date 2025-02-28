@@ -36,13 +36,13 @@ export const docsUrl = "https://firebase.google.com/docs/hosting/frameworks/angu
 
 const DEFAULT_BUILD_SCRIPT = ["ng build"];
 
-export const supportedRange = "14 - 17";
+export const supportedRange = "16 - 19";
 
 export async function discover(dir: string): Promise<Discovery | undefined> {
   if (!(await pathExists(join(dir, "package.json")))) return;
   if (!(await pathExists(join(dir, "angular.json")))) return;
   const version = getAngularVersion(dir);
-  return { mayWantBackend: true, publicDirectory: join(dir, "src", "assets"), version };
+  return { mayWantBackend: true, version };
 }
 
 export function init(setup: any, config: any) {
@@ -51,7 +51,7 @@ export function init(setup: any, config: any) {
     {
       stdio: "inherit",
       cwd: config.projectDir,
-    }
+    },
   );
   return Promise.resolve();
 }
@@ -90,7 +90,7 @@ export async function build(dir: string, configuration: string): Promise<BuildRe
 }
 
 export async function getDevModeHandle(dir: string, configuration: string) {
-  const { targetStringFromTarget } = relativeRequire(dir, "@angular-devkit/architect");
+  const { targetStringFromTarget } = await relativeRequire(dir, "@angular-devkit/architect");
   const { serveTarget } = await getContext(dir, configuration);
   if (!serveTarget) throw new Error("Could not find the serveTarget");
   const host = new Promise<string>((resolve, reject) => {
@@ -116,11 +116,11 @@ export async function getDevModeHandle(dir: string, configuration: string) {
 export async function ɵcodegenPublicDirectory(
   sourceDir: string,
   destDir: string,
-  configuration: string
+  configuration: string,
 ) {
   const { outputPath, baseHref, defaultLocale, locales } = await getBrowserConfig(
     sourceDir,
-    configuration
+    configuration,
   );
   await mkdir(join(destDir, baseHref), { recursive: true });
   if (locales) {
@@ -165,7 +165,7 @@ export async function shouldUseDevModeHandle(targetOrConfiguration: string, dir:
 export async function ɵcodegenFunctionsDirectory(
   sourceDir: string,
   destDir: string,
-  configuration: string
+  configuration: string,
 ) {
   const {
     packageJson,
@@ -187,11 +187,11 @@ export async function ɵcodegenFunctionsDirectory(
   await Promise.all([
     serverOutputPath
       ? mkdir(join(destDir, serverOutputPath), { recursive: true }).then(() =>
-          copy(join(sourceDir, serverOutputPath), join(destDir, serverOutputPath))
+          copy(join(sourceDir, serverOutputPath), join(destDir, serverOutputPath)),
         )
       : Promise.resolve(),
     mkdir(join(destDir, browserOutputPath), { recursive: true }).then(() =>
-      copy(join(sourceDir, browserOutputPath), join(destDir, browserOutputPath))
+      copy(join(sourceDir, browserOutputPath), join(destDir, browserOutputPath)),
     ),
   ]);
 
@@ -242,11 +242,28 @@ exports.handle = function(req,res) {
   });
 };\n`;
   } else if (serverOutputPath) {
-    bootstrapScript = `const app = ${
-      serverEntry?.endsWith(".mjs")
-        ? `import(\`./${serverOutputPath}/${serverEntry}\`)`
-        : `Promise.resolve(require('./${serverOutputPath}/${serverEntry}'))`
-    }.then(server => server.app());
+    bootstrapScript = `
+    const app = new Promise((resolve, reject) => {
+      setTimeout(() => {
+        const port = process.env.PORT;
+        const socket = 'express.sock';
+        process.env.PORT = socket;
+
+        ${
+          serverEntry?.endsWith(".mjs")
+            ? `import(\`./${serverOutputPath}/${serverEntry}\`)`
+            : `Promise.resolve(require('./${serverOutputPath}/${serverEntry}'))`
+        }.then(({ default: defHandler, reqHandler, app }) => {
+          const handler = app?.() ?? reqHandler ?? defHandler;
+          if (!handler) {
+            reject(\`The file at "./${serverOutputPath}/${serverEntry}" did not export a valid request handler. Expected exports: 'app', 'default', or 'reqHandler'.\`);
+          } else {
+            process.env.PORT = port;
+            resolve(handler);
+          }
+        });
+      }, 0);
+    });
 exports.handle = (req,res) => app.then(it => it(req,res));\n`;
   } else {
     bootstrapScript = `exports.handle = (res, req) => req.sendStatus(404);\n`;

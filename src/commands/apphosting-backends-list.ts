@@ -1,60 +1,60 @@
 import { Command } from "../command";
-import { Options } from "../options";
-import { needProjectId } from "../projectUtils";
+import { datetimeString } from "../utils";
 import { FirebaseError } from "../error";
 import { logger } from "../logger";
+import { needProjectId } from "../projectUtils";
+import { Options } from "../options";
 import * as apphosting from "../gcp/apphosting";
+import * as Table from "cli-table3";
+import { logWarning } from "../utils";
 
-const Table = require("cli-table");
-const COLUMN_LENGTH = 20;
-const TABLE_HEAD = ["Backend Id", "Repository", "Location", "URL", "Created Date", "Updated Date"];
+const TABLE_HEAD = ["Backend", "Repository", "URL", "Location", "Updated Date"];
+
 export const command = new Command("apphosting:backends:list")
-  .description("List backends of a Firebase project.")
-  .option("-l, --location <location>", "App Backend location", "-")
+  .description("list Firebase App Hosting backends")
+  .option("-l, --location <location>", "list backends in the specified location")
   .before(apphosting.ensureApiEnabled)
   .action(async (options: Options) => {
+    if (options.location !== undefined) {
+      logWarning("--location is being removed in the next major release.");
+    }
     const projectId = needProjectId(options);
-    const location = options.location as string;
-    const table = new Table({
-      head: TABLE_HEAD,
-      style: { head: ["green"] },
-    });
-    table.colWidths = COLUMN_LENGTH;
-    const backendsList: apphosting.Backend[] = [];
+    const location = (options.location as string) ?? "-";
+    let backendRes: apphosting.ListBackendsResponse;
     try {
-      const backendsPerRegion = await apphosting.listBackends(projectId, location);
-      backendsList.push(...(backendsPerRegion.backends || []));
-      populateTable(backendsList, table);
-      logger.info(table.toString());
-    } catch (err: any) {
+      backendRes = await apphosting.listBackends(projectId, location);
+    } catch (err: unknown) {
       throw new FirebaseError(
         `Unable to list backends present for project: ${projectId}. Please check the parameters you have provided.`,
-        { original: err }
+        { original: err as Error },
       );
     }
 
-    return backendsList;
+    const backends = backendRes.backends ?? [];
+    printBackendsTable(backends);
+
+    return backends;
   });
 
-function populateTable(backends: apphosting.Backend[], table: any) {
+/**
+ * Prints a table given a list of backends
+ */
+export function printBackendsTable(backends: apphosting.Backend[]): void {
+  const table = new Table({
+    head: TABLE_HEAD,
+    style: { head: ["green"] },
+  });
+
   for (const backend of backends) {
-    const [location, , backendId] = backend.name.split("/").slice(3, 6);
-    const entry = [
-      backendId,
-      backend.codebase?.repository?.split("/").pop(),
+    const { location, id } = apphosting.parseBackendName(backend.name);
+    table.push([
+      id,
+      // sample repository value: "projects/<project-name>/locations/us-central1/connections/<connection-id>/repositories/<repository-name>"
+      backend.codebase?.repository?.split("/").pop() ?? "",
+      backend.uri.startsWith("https:") ? backend.uri : "https://" + backend.uri,
       location,
-      backend.uri,
-      backend.createTime,
-      backend.updateTime,
-    ];
-    const newRow = entry.map((name) => {
-      const maxCellWidth = COLUMN_LENGTH - 2;
-      const chunks = [];
-      for (let i = 0; name && i < name.length; i += maxCellWidth) {
-        chunks.push(name.substring(i, i + maxCellWidth));
-      }
-      return chunks.join("\n");
-    });
-    table.push(newRow);
+      datetimeString(new Date(backend.updateTime)),
+    ]);
   }
+  logger.info(table.toString());
 }

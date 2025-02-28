@@ -1,12 +1,12 @@
 import { Command } from "../command";
-const Table = require("cli-table");
+import * as Table from "cli-table3";
 import * as experiments from "../experiments";
 import { partition } from "../functional";
 import { logger } from "../logger";
 
 export const command = new Command("experiments:list")
   .description(
-    "list all experiments, along with a description of each experiment and whether it is currently enabled"
+    "list all experiments, along with a description of each experiment and whether it is currently enabled",
   )
   .action(() => {
     const table = new Table({
